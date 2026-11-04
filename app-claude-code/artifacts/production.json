@@ -1,0 +1,6 @@
+{
+  "version": "v20261027-161129",
+  "promoted_at": "2026-10-27T16:11:29+00:00",
+  "reason": "Logistic Regression champion \u2014 PR-AUC 0.460 vs production 0.460 (within 0.01 tolerance)",
+  "previous": "v20261027-160551"
+}

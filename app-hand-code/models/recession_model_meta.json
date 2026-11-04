@@ -1,0 +1,15 @@
+{
+  "features": [
+    "term",
+    "credit",
+    "sahm",
+    "claims",
+    "permits",
+    "ip_yoy"
+  ],
+  "horizon_months": 12,
+  "train_start": "1967-07-01",
+  "train_end": "2026-08-01",
+  "oos_auc": 0.867948717948718,
+  "oos_brier": 0.13865847654312535
+}

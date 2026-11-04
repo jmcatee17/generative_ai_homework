@@ -1,0 +1,9 @@
+fredapi
+pandas
+numpy
+scikit-learn
+requests
+matplotlib
+dotenv
+fastapi
+uvicorn[standard]

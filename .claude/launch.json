@@ -1,0 +1,10 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "recession-monitor",
+      "url": "http://localhost:8010",
+      "port": 8010
+    }
+  ]
+}

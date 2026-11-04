@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recession Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/vendor/plotly-2.35.2.min.js"></script>
+  <script>
+    try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-6 4 3 5-8 4 5"/></svg></div>
+      <div>
+        <div class="brand-name">Recession Monitor</div>
+        <div class="brand-sub">United States · 12-month horizon</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a href="#overview">Overview</a>
+      <a href="#history">History</a>
+      <a href="#drivers">Drivers</a>
+      <a href="#models">Models</a>
+      <a href="#indicators">Indicators</a>
+      <a href="#scenario">Scenarios</a>
+      <a href="#method">Methodology</a>
+    </nav>
+    <div class="top-actions">
+      <span class="chip hide-sm" id="asof-chip"><span class="dot"></span><span>Loading…</span></span>
+      <button class="btn" id="refresh-btn" title="Re-pull FRED data and re-score">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></svg>
+        Refresh data
+      </button>
+      <button class="btn icon-btn" id="theme-btn" title="Toggle theme" aria-label="Toggle theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <!-- OVERVIEW -->
+  <section id="overview">
+    <div class="grid g-hero">
+      <div class="card">
+        <div class="eyebrow">P(recession within 12 months)</div>
+        <div class="hero-prob"><span class="big num" id="hero-prob">–</span><span class="pct">%</span></div>
+        <div id="hero-band"></div>
+        <div class="meter"><div class="meter-fill" id="meter-fill"></div><div class="meter-thr" id="meter-thr"></div></div>
+        <div class="meter-labels"><span>0%</span><span id="thr-label">Signal threshold</span><span>100%</span></div>
+        <div class="deltas">
+          <div class="delta"><div class="k">vs 1m ago</div><div class="v" id="d1">–</div></div>
+          <div class="delta"><div class="k">vs 3m ago</div><div class="v" id="d3">–</div></div>
+          <div class="delta"><div class="k">vs 12m ago</div><div class="v" id="d12">–</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div><h3>Forward probability curve</h3><div class="card-sub">P(recession begins or is under way within <i>h</i> months)</div></div>
+        </div>
+        <div id="term-chart" class="chart short"></div>
+      </div>
+      <div class="card">
+        <div class="eyebrow" style="margin-bottom:8px">Production model</div>
+        <div class="kpis">
+          <div class="kpi wide"><div class="k">Champion</div><div class="champion-badge" id="k-champ">–</div><div class="s mono" id="k-version">–</div></div>
+          <div class="kpi"><div class="k">Backtest PR-AUC</div><div class="v" id="k-prauc">–</div><div class="s">base rate <span id="k-base">–</span></div></div>
+          <div class="kpi"><div class="k">Backtest ROC-AUC</div><div class="v" id="k-auc">–</div><div class="s">1985 → present</div></div>
+          <div class="kpi"><div class="k">Recessions flagged</div><div class="v" id="k-flag">–</div><div class="s">ahead of NBER start</div></div>
+          <div class="kpi"><div class="k">Avg. lead time</div><div class="v" id="k-lead">–</div><div class="s">months before start</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section id="history">
+    <header>
+      <div><h2>Recession probability through time</h2>
+        <div class="section-note">Walk-forward out-of-sample estimates — each month scored by a model trained only on data available a year earlier. Shaded bands are NBER recessions.</div></div>
+    </header>
+    <div class="card">
+      <div class="card-head">
+        <div class="toggles" id="model-toggles"></div>
+        <div class="controls">
+          <div class="seg" id="range-seg">
+            <button data-y="5">5Y</button><button data-y="10">10Y</button><button data-y="20">20Y</button><button data-y="0" class="on">All</button>
+          </div>
+        </div>
+      </div>
+      <div id="history-chart" class="chart tall"></div>
+    </div>
+  </section>
+
+  <!-- DRIVERS -->
+  <section id="drivers">
+    <header>
+      <div><h2>What is driving the forecast</h2>
+        <div class="section-note">Left: today’s reading decomposed by indicator. Right: what the model relies on in general.</div></div>
+    </header>
+    <div class="grid g-2">
+      <div class="card">
+        <div class="card-head"><div><h3>Current drivers</h3><div class="card-sub">Change in probability if each indicator returned to its expansion-era median</div></div></div>
+        <div id="drivers-chart" class="chart tall"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div><h3>Feature importance</h3><div class="card-sub" id="imp-sub">–</div></div>
+          <div class="controls">
+            <select id="imp-model"></select>
+            <div class="seg" id="imp-seg"><button data-k="permutation" class="on">Permutation (OOS)</button><button data-k="native">Model-native</button></div>
+          </div>
+        </div>
+        <div id="imp-chart" class="chart tall"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MODELS -->
+  <section id="models">
+    <header>
+      <div><h2>Model comparison</h2>
+        <div class="section-note" id="models-note">–</div></div>
+    </header>
+    <div class="card" style="margin-bottom:16px">
+      <div class="table-wrap"><table id="metrics-table"></table></div>
+    </div>
+    <div class="grid g-3">
+      <div class="card"><div class="card-head"><div><h3>ROC curve</h3><div class="card-sub">Out-of-sample, 1985 → present</div></div></div><div id="roc-chart" class="chart"></div></div>
+      <div class="card"><div class="card-head"><div><h3>Calibration</h3><div class="card-sub">Predicted vs. realised frequency</div></div></div><div id="cal-chart" class="chart"></div></div>
+      <div class="card"><div class="card-head"><div><h3>Precision / recall at threshold</h3><div class="card-sub">Each model at its F1-optimal cut-off</div></div></div><div id="pr-chart" class="chart"></div></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-head">
+        <div><h3>Recession call record</h3><div class="card-sub">Peak probability in the 12 months before each NBER peak, and how early it crossed the signal threshold</div></div>
+        <select id="ep-model"></select>
+      </div>
+      <div class="table-wrap"><table id="episodes-table"></table></div>
+    </div>
+  </section>
+
+  <!-- INDICATORS -->
+  <section id="indicators">
+    <header>
+      <div><h2>Leading indicators</h2>
+        <div class="section-note">Latest reading, 3-month change and where it sits in its 1971–present distribution (bar = how recessionary the reading is). Select a card to chart it.</div></div>
+    </header>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-head"><div><h3 id="ind-title">–</h3><div class="card-sub" id="ind-desc">–</div></div><span class="chip mono" id="ind-src">–</span></div>
+      <div id="ind-chart" class="chart"></div>
+    </div>
+    <div class="ind-grid" id="ind-grid"></div>
+  </section>
+
+  <!-- SCENARIO -->
+  <section id="scenario">
+    <header>
+      <div><h2>Scenario analysis</h2>
+        <div class="section-note">Shock today’s indicators and re-score with the production model. Sliders span each indicator’s 1st–99th historical percentile.</div></div>
+    </header>
+    <div class="scen">
+      <div class="card">
+        <div class="presets" id="presets"></div>
+        <div class="sliders" id="sliders"></div>
+        <p class="section-note" style="margin:12px 0 0">Each shock moves one indicator while holding the others at today’s values. Indicators are correlated, so isolated shocks can behave unexpectedly. For example, a high Sahm reading combined with calm credit markets has historically marked late-recession or recovery months, so a labor-only shock can <i>lower</i> the 12-month probability. Use the replay or multi-indicator presets for realistic paths.</p>
+      </div>
+      <div class="card scen-out">
+        <div class="eyebrow">Scenario probability · 12m</div>
+        <div style="margin:8px 0 4px"><span class="big" id="scen-prob">–</span><span class="pct mono" style="font-size:20px;color:var(--text-2)"> %</span></div>
+        <div class="vs" id="scen-vs">–</div>
+        <div id="scen-chart" class="chart short" style="margin-top:12px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- METHODOLOGY -->
+  <section id="method">
+    <header><div><h2>Methodology &amp; model card</h2></div></header>
+    <div class="method">
+      <div class="card">
+        <h3>Target</h3>
+        <p>For each month <i>t</i>, the label is 1 if any month in <i>t</i>+1 … <i>t</i>+12 is an NBER recession month (FRED <span class="mono">USREC</span>). The forward curve refits the same model for 3–24 month windows.</p>
+        <h3 style="margin-top:14px">Validation</h3>
+        <p>Expanding-window walk-forward from 1985, refit every January. Training rows are embargoed 12 months before each test year, so no label that was still unknown at forecast time enters training.</p>
+        <h3 style="margin-top:14px">Selection</h3>
+        <p id="sel-rule">–</p>
+      </div>
+      <div class="card">
+        <h3>Production model</h3>
+        <dl class="kv" id="model-kv"></dl>
+        <h3 style="margin-top:14px">Hyperparameters</h3>
+        <dl class="kv" id="hp-kv"></dl>
+      </div>
+      <div class="card">
+        <h3>Data</h3>
+        <dl class="kv" id="data-kv"></dl>
+        <h3 style="margin-top:14px">Registry</h3>
+        <div class="table-wrap"><table id="versions-table" style="font-size:12px"></table></div>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:16px">
+      <b>Limitations.</b> Indicators use today’s revised data rather than the vintages available in real time, so the backtest is somewhat optimistic. NBER dates recessions with a lag, and the backtest has only four recessions (1990, 2001, 2008, 2020), so treat the estimates as uncertain. This is a research tool, not investment advice.
+    </div>
+  </section>
+</main>
+<footer>
+  <span>Source: Federal Reserve Bank of St. Louis (FRED). NBER-based recession indicators.</span>
+  <span><a href="/docs">API documentation</a> · <a href="/api/health">Health</a></span>
+</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>

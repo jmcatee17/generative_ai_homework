@@ -1,0 +1,10 @@
+fastapi==0.162.0
+uvicorn[standard]>=0.30
+pandas>=2.2
+numpy>=2.0
+scikit-learn==1.9.1
+xgboost==3.4.1
+fredapi>=0.5.2
+python-dotenv>=1.0
+requests>=2.32
+joblib>=1.4
